@@ -1,0 +1,54 @@
+HelloGitty for Chrome — Privacy
+
+What data the extension accesses
+
+HelloGitty reads your open GitHub pull requests and issues through the GitHub GraphQL API (api.github.com). It uses the timeline of each item — reviews, comments, CI checks, assignments — to classify whose move it is. No file contents, repository code or commit diffs are accessed.
+
+How data is stored
+
+All data is stored locally in your browser using Chrome's extension storage API (chrome.storage.local):
+
+- auth: your GitHub access token (and refresh token, if applicable), your GitHub login name
+- board: the classified board (item titles, URLs, statuses, timestamps)
+- settings: the list of repositories or organizations you choose to watch
+- status: the last refresh timestamp and any error message
+
+Nothing is written to disk outside Chrome's own extension storage. No cookies are set.
+
+Network requests
+
+The extension contacts only one endpoint:
+
+- https://api.github.com/graphql — to fetch your pull requests and issues
+
+Two optional endpoints may be contacted when you choose to use them:
+
+- https://github.com/login/* — only during OAuth device-flow or web-auth sign-in
+- http://localhost:7340 — only in the full-tab view, to check whether the HelloGitty dashboard is running locally
+
+No other network requests are made. There is no analytics, telemetry, crash reporting, or tracking of any kind.
+
+Data sharing
+
+HelloGitty does not share, sell, or transfer any user data to third parties. Your GitHub token is sent only to api.github.com to authenticate API requests. No data leaves your browser except for those GitHub API calls.
+
+Permissions and why they are needed
+
+- storage: persist the board, sign-in credentials and settings across browser sessions
+- alarms: schedule the five-minute background refresh
+- sidePanel: register the board as a Chrome side panel
+- identity: support the OAuth sign-in flows (device flow and web auth)
+- host_permissions (api.github.com): make authenticated GraphQL requests to GitHub
+
+Optional host permissions (requested only when used):
+
+- github.com/login/*: complete the OAuth sign-in flow
+- localhost:7340/*: detect a running HelloGitty dashboard for the full-tab redirect
+
+Data retention
+
+Board data and credentials persist until you sign out or uninstall the extension. Signing out removes your token and board data from storage. Uninstalling the extension removes all stored data.
+
+Open source
+
+The full source code is available at https://github.com/FawwazLawal/Hello_Gitty_Ext. You can audit exactly what the extension does.
