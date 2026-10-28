@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "HelloGitty for Chrome",
   "short_name": "HelloGitty",
-  "version": "0.2.18",
+  "version": "0.2.20",
   "description": "Your GitHub pull requests and issues, sorted by whose move it is, with the count waiting on you in the toolbar.",
   "homepage_url": "https://github.com/FawwazLawal/Hello_Gitty_Ext",
   "minimum_chrome_version": "116",
