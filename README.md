@@ -61,7 +61,7 @@ The build produces `dist/hellogitty/` (the unpacked extension) and `dist/hellogi
 
 ## Privacy
 
-HelloGitty contacts only the GitHub GraphQL API (`api.github.com`) to fetch your pull requests and issues. All data is stored locally in Chrome's extension storage. There is no analytics, telemetry, or tracking of any kind. Your GitHub token is sent only to GitHub.
+HelloGitty contacts only GitHub's API (`api.github.com`): GraphQL to fetch your pull requests and issues, and the notifications endpoint to mark the ones with unread activity as New (read-only; it never marks anything read). All data is stored locally in Chrome's extension storage. There is no analytics, telemetry, or tracking of any kind. Your GitHub token is sent only to GitHub.
 
 See [store/privacy.txt](store/privacy.txt) for the full privacy policy.
 

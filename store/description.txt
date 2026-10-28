@@ -21,6 +21,6 @@ Sign-in options:
 - GitHub device flow (copy a short code, approve in the browser)
 - One-click OAuth when built with a GitHub App client ID
 
-The board refreshes every five minutes in the background. Only the GitHub GraphQL API is contacted — no analytics, no telemetry, no third-party services. All data stays in your browser.
+The board refreshes every five minutes in the background. Only GitHub's API (GraphQL and notifications) is contacted — no analytics, no telemetry, no third-party services. All data stays in your browser.
 
 HelloGitty for Chrome is open source. The repository, build instructions and a privacy summary are at https://github.com/FawwazLawal/Hello_Gitty_Ext.
