@@ -42,6 +42,13 @@ Permissions and why they are needed
 - identity: support the OAuth sign-in flows (device flow and web auth)
 - host_permissions (api.github.com): make authenticated requests to GitHub's GraphQL and notifications APIs
 
+GitHub scopes requested by "Sign in with GitHub" (device flow):
+
+- read:org: read your organization memberships, which the board query needs
+- notifications: read your unread notifications to mark items New. GitHub's notifications scope would also allow marking threads read or changing subscriptions; HelloGitty never does either, it only reads.
+
+A personal access token you paste instead has whatever access you gave it; without notification access the board works the same, just without New markers.
+
 Optional host permissions (requested only when used):
 
 - github.com/login/*: complete the OAuth sign-in flow

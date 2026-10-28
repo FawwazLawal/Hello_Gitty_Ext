@@ -10,9 +10,11 @@
 //
 // OAUTH_SCOPE is the OAuth scope sent in the device flow (OAuth App). The web auth flow (GitHub
 // App) ignores this and uses "offline_access" instead, since GitHub App permissions are set in
-// the app registration. "read:org" is the least the board query needs with an OAuth App.
+// the app registration. "read:org" is the least the board query needs with an OAuth App;
+// "notifications" lets it read unread notifications to mark items New. That scope would also allow
+// marking threads read, which HelloGitty never does: it only reads.
 self.HELLOGITTY_CONFIG = {
   OAUTH_CLIENT_ID: "",
   OAUTH_EXCHANGE_URL: "",
-  OAUTH_SCOPE: "read:org",
+  OAUTH_SCOPE: "read:org notifications",
 };

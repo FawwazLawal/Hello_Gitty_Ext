@@ -73,14 +73,20 @@ const REASON_WORDS = {
 // or issue the way board rows are keyed, keeping the newest per row: {new: unix seconds, what}.
 // It never marks anything read. Fine-grained tokens and GitHub App sign-ins can't read
 // notifications at all, and an OAuth or classic token needs the notifications or repo scope;
-// GitHub answers those with 401, 403 or 404, and the board goes on without New markers.
-async function unreadNotifications(token) {
+// GitHub answers those with 401, 403 or 404, and the board goes on without New markers. via is
+// how the user signed in, so the note can say what would turn the markers on.
+const NOTIFY_OFF = {
+  device: "This sign-in can't read GitHub notifications, so nothing is marked New. Sign out and sign in with GitHub again to allow it.",
+  web: "Sign-ins through the HelloGitty GitHub App can't read notifications, so nothing is marked New. A classic token with the notifications or repo scope can.",
+  token: "This token can't read GitHub notifications, so nothing is marked New. Fine-grained tokens never can; a classic token with the notifications or repo scope can.",
+};
+async function unreadNotifications(token, via) {
   const res = await fetch(NOTIFICATIONS, {
     headers: { Authorization: "bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     cache: "no-store",
   });
   if (res.status === 401 || res.status === 403 || res.status === 404) {
-    return { state: "off", note: "This sign-in can't read GitHub notifications, so nothing is marked New. Fine-grained tokens never can; a classic token with the notifications or repo scope can." };
+    return { state: "off", note: NOTIFY_OFF[via] || NOTIFY_OFF.token };
   }
   if (!res.ok) throw new Error(`GitHub answered ${res.status} ${res.statusText}`.trim());
   const rows = {};
@@ -145,7 +151,7 @@ async function doRefresh() {
     const update = { status: { checkedAt: now, error, errorAt: error ? now : "" } };
     if (out.board) update.board = out.board;
     // New markers are extra: when GitHub can't be reached for them, keep the last ones and the board.
-    try { update.notify = await unreadNotifications(token); } catch (e) {}
+    try { update.notify = await unreadNotifications(token, auth.via); } catch (e) {}
     await chrome.storage.local.set(update);
     if (out.board) await setBadge(out.board.you.length);
   } catch (e) {
