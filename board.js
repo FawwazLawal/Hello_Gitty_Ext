@@ -86,6 +86,8 @@ const MOVE_TAG = { you: "Your move", them: "Waiting on others", done: "Finished"
 // The glossary for hover help comes from the Go build through the stored board; without it no word
 // is marked as explainable (hide, don't fake).
 let GLOSSARY = {};
+// NEW is the unread GitHub notifications by row key, from the service worker: {new, what}.
+let NEW = {};
 const known = (id) => !!(id && GLOSSARY[id]);
 
 // term marks an element the dashboard's hover help explains: data-term (and tabindex when it
@@ -111,18 +113,20 @@ function peekTemplate(p) {
   return t;
 }
 
-// item is the dashboard's {{define "item"}}. The dot is attention: amber when it's your move,
-// hollow otherwise. The green "new" dot and the New chip need GitHub notifications, which this
-// extension doesn't read, so data-new stays 0 and the dashboard's script keeps them off.
+// item is the dashboard's {{define "item"}}. The dot is attention: green when a GitHub notification
+// about the row is unread, amber when it's your move, hollow otherwise. data-new is the unread
+// notification's time; the dashboard's script lights the dot, the New chip and the "N new" count
+// from it, and turns them off once the row is opened from the board.
 function item(r, move) {
   const key = r.repo.toLowerCase() + "-" + r.number;
   const k = r.repo.toLowerCase() + "#" + r.number;
+  const fresh = NEW[k];
   const words = [r.title, r.repo, "#" + r.number, r.kind, r.status, r.why, r.personal, r.quoteBy, r.quote, "@" + r.author,
     ...(r.labels || []), ...(r.notes || []).map((n) => n.text)];
   const href = safeURL(r.url);
   const qhref = safeURL(r.quoteURL);
   return el("li", {
-    class: "wi", "data-k": k, "data-new": "0", "data-v": "w-" + key, "data-val": move + "|" + r.status + "|" + (r.personal || ""),
+    class: "wi", "data-k": k, "data-new": fresh ? String(fresh.new) : "0", "data-v": "w-" + key, "data-val": move + "|" + r.status + "|" + (r.personal || ""),
     "data-kind": r.kind.toLowerCase(), "data-repo": r.repo.toLowerCase(), "data-name": r.repo, "data-move": move,
     "data-personal": !!r.personal, "data-s": words.map((w) => w || "").join(" ").toLowerCase(),
   },
@@ -135,7 +139,7 @@ function item(r, move) {
         el("span", { class: "movetag " + move }, MOVE_TAG[move]),
         (r.labels || []).map((l) => el("span", { class: "label" }, l))),
       el("div", { class: "state" },
-        el("span", { class: "newchip", ...term("new", true), hidden: true }, "New"),
+        el("span", { class: "newchip", ...term("new", true), hidden: true }, fresh && fresh.what ? "New · " + fresh.what : "New"),
         r.personal ? el("span", { class: "only", ...(known("only-you") ? term("only-you", true) : { title: "Only you can do this" }) }, "Only you") : null,
         el("span", { class: "say" + (r.level ? " " + r.level : "") }, r.status),
         (r.notes || []).map((n) => el("span", { class: "note " + (n.level || ""), ...term(n.term, true) }, n.text))),
@@ -259,8 +263,8 @@ function workPanels(st) {
   const login = st.auth.login || "you";
   const work = el("section", { class: "panel", "aria-labelledby": "work-h", "data-board": true },
     el("h2", { id: "work-h" }, "Your work ", el("span", { class: "lbl" },
-      b ? `Pull requests and issues @${login} has out, anywhere on GitHub · updated ${ago(b.fetchedAt)}` : "Not fetched yet",
-      el("span", { class: "newcount", id: "newcount", hidden: true }))));
+      b ? `Pull requests and issues @${login} has out, anywhere on GitHub · updated ${ago(b.fetchedAt)}` : "Not fetched yet"),
+      el("span", { class: "nb", id: "newcount", hidden: true })));
   if (!b) {
     work.append(el("p", { class: "pad zero" }, st.error
       ? ["Couldn't load your pull requests and issues: ", el("span", { class: "err" }, st.error)]
@@ -294,9 +298,12 @@ function checksPanel(st) {
       el("dt", null, "Last check finished"), el("dd", null, b ? utc(b.fetchedAt) + " UTC" : el("span", { class: "zero" }, "not yet")),
       el("dt", null, "Next check"), el("dd", null, st.next ? utc(new Date(st.next).toISOString()) + " UTC" : el("span", { class: "zero" }, "starting")),
       el("dt", null, "Checks run every"), el("dd", null, "5 min"),
+      el("dt", null, "New activity"), el("dd", null, !st.notify ? el("span", { class: "zero" }, "not checked yet")
+        : st.notify.state === "ok" ? "from GitHub notifications" : el("span", { class: "zero" }, "off")),
       el("dt", null, termText("graphql", "Your work refresh")), el("dd", null, b && b.cost
         ? [el("span", { class: "fig" }, String(b.cost)), " GraphQL points · ", el("span", { class: "fig" }, String(b.remaining)), " left"]
-        : el("span", { class: "zero" }, "—"))));
+        : el("span", { class: "zero" }, "—"))),
+    st.notify && st.notify.state === "off" ? el("p", { class: "pad lbl" }, st.notify.note) : null);
 }
 
 function accountPanel(st) {
@@ -551,18 +558,19 @@ document.addEventListener("submit", (e) => {
 // --- page --------------------------------------------------------------------------------------
 
 async function state() {
-  const { auth, board, status, settings, signin } = await chrome.storage.local.get(["auth", "board", "status", "settings", "signin"]);
+  const { auth, board, status, settings, signin, notify } = await chrome.storage.local.get(["auth", "board", "status", "settings", "signin", "notify"]);
   const { device } = await chrome.storage.session.get("device").catch(() => ({}));
   const alarm = await chrome.alarms.get("refresh").catch(() => null);
   return {
     auth: auth || {}, signedIn: !!(auth && auth.token), board, error: (status && status.error) || "",
-    maintain: settings && settings.maintain, device, next: alarm && alarm.scheduledTime, expired: !!(signin && signin.expired),
+    maintain: settings && settings.maintain, device, notify, next: alarm && alarm.scheduledTime, expired: !!(signin && signin.expired),
   };
 }
 
 async function render() {
   const st = await state();
   GLOSSARY = (st.board && st.board.glossary) || {};
+  NEW = (st.notify && st.notify.state === "ok" && st.notify.rows) || {};
   // Signed out, or signed in with the first board still on its way: the sign-in card.
   const signingIn = !st.signedIn || (!st.board && !st.error);
   document.body.classList.toggle("signing-in", signingIn);

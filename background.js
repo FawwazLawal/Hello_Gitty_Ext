@@ -7,12 +7,15 @@
 //   board    the classified board from board.wasm, kept when a refresh fails
 //   status   {checkedAt, error, errorAt}
 //   signin   {expired: true} after GitHub stops accepting the sign-in, until the next sign-in
+//   notify   {state: "ok", rows: {"owner/name#123": {new, what}}} unread notifications by board row,
+//            or {state: "off", note} when the token can't read notifications
 // chrome.storage.session holds the device sign-in, which lasts minutes and never touches disk:
 //   device   {userCode, uri, expiresIn, expiresAt, ..., error, reason: "expired" | "denied" | "failed"}
 
 importScripts("config.js", "wasm_exec.js");
 
 const API = "https://api.github.com/graphql";
+const NOTIFICATIONS = "https://api.github.com/notifications?per_page=50";
 const ALARM = "refresh";
 const PERIOD_MINUTES = 5;
 const FINISHED_DAYS = 30;
@@ -57,6 +60,40 @@ async function graphql(token, query, variables) {
   }
   if (!res.ok) throw new Error(`GitHub answered ${res.status} ${res.statusText}`.trim());
   return res.text();
+}
+
+// The dashboard's words for why a notification arrived (internal/notify Words).
+const REASON_WORDS = {
+  comment: "New comment", mention: "Mentioned you", team_mention: "Mentioned you", review_requested: "Review requested",
+  assign: "Assigned to you", state_change: "Opened, closed or merged", security_alert: "Security alert",
+  approval_requested: "Approval requested", ci_activity: "CI activity",
+};
+
+// unreadNotifications reads the newest 50 unread notification threads and keys each pull request
+// or issue the way board rows are keyed, keeping the newest per row: {new: unix seconds, what}.
+// It never marks anything read. Fine-grained tokens and GitHub App sign-ins can't read
+// notifications at all, and an OAuth or classic token needs the notifications or repo scope;
+// GitHub answers those with 401, 403 or 404, and the board goes on without New markers.
+async function unreadNotifications(token) {
+  const res = await fetch(NOTIFICATIONS, {
+    headers: { Authorization: "bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403 || res.status === 404) {
+    return { state: "off", note: "This sign-in can't read GitHub notifications, so nothing is marked New. Fine-grained tokens never can; a classic token with the notifications or repo scope can." };
+  }
+  if (!res.ok) throw new Error(`GitHub answered ${res.status} ${res.statusText}`.trim());
+  const rows = {};
+  for (const t of await res.json()) {
+    const s = t.subject || {};
+    if (!t.unread || (s.type !== "PullRequest" && s.type !== "Issue") || !t.repository) continue;
+    const number = Number((s.url || "").split("/").pop());
+    if (!number) continue;
+    const k = t.repository.full_name.toLowerCase() + "#" + number;
+    const at = Math.floor(Date.parse(t.updated_at) / 1000) || 0;
+    if (!rows[k] || at > rows[k].new) rows[k] = { new: at, what: REASON_WORDS[t.reason] || "New activity" };
+  }
+  return { state: "ok", rows };
 }
 
 async function viewerLogin(token) {
@@ -107,6 +144,8 @@ async function doRefresh() {
     const error = out.error ? [...new Set(out.error.split("; "))].join("; ") : "";
     const update = { status: { checkedAt: now, error, errorAt: error ? now : "" } };
     if (out.board) update.board = out.board;
+    // New markers are extra: when GitHub can't be reached for them, keep the last ones and the board.
+    try { update.notify = await unreadNotifications(token); } catch (e) {}
     await chrome.storage.local.set(update);
     if (out.board) await setBadge(out.board.you.length);
   } catch (e) {
@@ -142,7 +181,7 @@ async function signIn(token, via, granted) {
   if (!token) throw new Error("Paste a token first.");
   const login = await viewerLogin(token);
   await chrome.storage.local.set({ auth: { via, login, ...tokenFields(granted || { access_token: token }) }, status: {} });
-  await chrome.storage.local.remove(["board", "signin"]);
+  await chrome.storage.local.remove(["board", "signin", "notify"]);
   schedule();
   refresh();
   return login;
@@ -182,7 +221,7 @@ async function freshToken(force) {
 }
 
 async function signOut() {
-  await chrome.storage.local.remove(["auth", "board", "status", "signin"]);
+  await chrome.storage.local.remove(["auth", "board", "status", "signin", "notify"]);
   await chrome.storage.session.remove("device");
   await setBadge(0);
 }
