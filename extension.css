@@ -3,14 +3,34 @@
    with fewer cells, buttons and fields, and the sign-in card. Colours are the dashboard's
    variables only, so light and dark follow its theme switch. */
 
+/* The popup sizes to its content, so it asks for 440px. When Chrome's zoom makes that more than
+   the popup can show, the popup is narrower than 440 CSS px and the page fills it instead. */
 body.view-popup { width: 440px; }
+@media (max-width: 439.98px) { body.view-popup { width: auto; } }
 
 /* Side panel and popup: the toolbar keeps search and Needs me only. */
 .narrow .toolbar .seg, .narrow .toolbar .pick { display: none; }
 
-/* Two alert cells keep the dashboard's proportions: the wide cell takes 2 of its 11 columns. */
-@media (min-width: 1181px) {
-  .cw { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 8fr); }
+/* Four alert cells (Your move wide, then Check failed, Data is stale, API running low) fill one
+   row at the dashboard's 2:1 proportions. Narrow, Your move takes its own row and the three
+   small cells share the next, instead of the dashboard's 2- and 1-column steps for its 9. */
+.cw { grid-auto-flow: row; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); }
+.cw .cell.wide { grid-column: auto; }
+/* A value too long for a small cell ("5 hours ago", "320 left") moves under the label. */
+.cw .cell .head { flex-wrap: wrap; column-gap: 8px; row-gap: 2px; }
+@media (max-width: 760px) {
+  .cw { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cw .cell.wide { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) { .cw .cell .cnt { white-space: normal; } }
+
+/* The dashboard's header puts its clock on a row of its own below 760px and splits brand and
+   buttons into two equal columns. The extension has no clock: brand and buttons share the first
+   row, and the telemetry (centre column) drops to a full-width row under them. */
+@media (max-width: 760px) {
+  .status { grid-template-columns: auto minmax(0, 1fr); }
+  .status .telemetry { grid-column: 1 / -1; grid-row: 2; padding: 0; }
+  .status .head-right { flex-wrap: wrap; justify-content: flex-end; }
 }
 
 /* Action buttons in the header use the dashboard's .headbtn class. On narrow views they stack
@@ -54,8 +74,10 @@ body.view-popup { width: 440px; }
 .sg-notice { margin: 0; padding: 10px 12px; border-radius: 6px; background: var(--caution-fill); color: var(--caution-ink);
   font-weight: 600; font-size: 14px; line-height: 1.45; }
 .sg-card { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
-/* The mascot window stays dark in light mode, like the dashboard header. */
-.sg-mascot { height: 132px; background: var(--mascot-bg); overflow: hidden; }
+/* The kitten is a rim light on black, drawn with mix-blend-mode: lighten, so its window stays dark
+   in every theme: on a light background lighten would turn the whole picture white. */
+.sg-mascot { height: 132px; background: #101011; overflow: hidden; }
+:root[data-visual-theme="pink"] .sg-mascot { background: #21101a; }
 .sg-mascot img { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: lighten; }
 .sg-body { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 20px; }
 .sg-body p { margin: 0; }

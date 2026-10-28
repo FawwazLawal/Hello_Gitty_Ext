@@ -17,8 +17,13 @@ version="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$here/manifest.json" | h
 rm -rf "$out"
 mkdir -p "$out/icons"
 
-# The classifier: internal/work compiled to WebAssembly with the standard Go toolchain.
-(cd "$root" && GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o "$out/board.wasm" ./extension/wasm)
+# The classifier: internal/work compiled to WebAssembly with the standard Go toolchain. wasm/main.go
+# imports hellogitty's internal packages, which Go only allows from inside that module, so it is
+# built from a temporary folder in the checkout and the folder is removed afterwards.
+wasmdir="$(mktemp -d "$root/.hellogitty-ext-wasm.XXXXXX")"
+trap 'rm -rf "$wasmdir"' EXIT
+cp "$here/wasm/main.go" "$wasmdir/"
+(cd "$root" && GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o "$out/board.wasm" "./$(basename "$wasmdir")")
 goroot="$(go env GOROOT)"
 for f in "$goroot/lib/wasm/wasm_exec.js" "$goroot/misc/wasm/wasm_exec.js"; do
   if [[ -f "$f" ]]; then cp "$f" "$out/wasm_exec.js"; break; fi

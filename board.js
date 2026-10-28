@@ -16,6 +16,7 @@ const DASHBOARD = "http://localhost:7340/";
 const DASHBOARD_ORIGIN = "http://localhost:7340/*";
 const FINISHED_SHOWN = 10;
 const GRAPHQL_HOURLY = 5000;
+const STALE_AFTER = 2 * 60 * 60 * 1000; // the dashboard's "Data is stale" threshold
 const send = (type, extra) => chrome.runtime.sendMessage({ type, ...extra });
 
 // --- helpers -----------------------------------------------------------------------------------
@@ -160,6 +161,14 @@ function counter(key, label, names, level, wide, lead) {
     el("span", { class: "sr" }, lit ? "lit" : "not lit"));
 }
 
+// valueCell is a dashboard cell that shows a value instead of a count: lit, it names the value.
+function valueCell(key, label, value, level, lit, detail) {
+  const help = known("cell-" + key) ? { tabindex: "0", ...term("cell-" + key, true, detail || null) } : { title: detail || null };
+  return el("div", { class: `cell ${level}${lit ? " lit" : ""}`, ...help },
+    el("div", { class: "head" }, el("span", { class: "leg" }, label), value ? el("span", { class: "cnt", "data-v": "cw-" + key }, value) : null),
+    el("span", { class: "sr" }, lit ? "lit" : "not lit"));
+}
+
 function emptyCell(key, label, value, level, wide) {
   return el("div", { class: `cell ${level}${wide ? " wide" : ""} empty` },
     el("div", { class: "head" }, el("span", { class: "leg" }, label)),
@@ -207,8 +216,16 @@ function cells(st) {
   const move = b ? b.you.map((r) => r.repo.split("/").slice(1).join("/") + "#" + r.number) : [];
   const moveCell = b ? counter("your-move", "Your move", move, "caution", true, known("cell-your-move") ? "" : "Pull requests and issues waiting on you. ")
     : emptyCell("your-move", "Your move", "not checked yet", "caution", true);
+  // The dashboard's cells that need only the board. Watched issues, repository health and the
+  // pipeline come from the dashboard's own server, so they stay there.
+  const fetched = b ? Date.parse(b.fetchedAt) : NaN;
+  const stale = !b || !(Date.now() - fetched <= STALE_AFTER);
+  const staleValue = !b ? "no check yet" : stale ? ago(b.fetchedAt) : "";
+  const low = !!(b && b.remaining && b.remaining * 10 < GRAPHQL_HOURLY);
   return el("section", { class: "cw", "aria-label": "Alerts" }, moveCell,
-    counter("poll-fail", "Check failed", st.error ? ["your work"] : [], "warn", false));
+    counter("poll-fail", "Check failed", st.error ? ["your work"] : [], "warn", false),
+    valueCell("data-stale", "Data is stale", staleValue, "warn", stale, "Lit when the last check of GitHub is more than 2 hours old."),
+    valueCell("api-low", "API running low", low ? b.remaining + " left" : "", "caution", low, "Lit when under 10% of the hourly GitHub quota remains."));
 }
 
 // toolbar is the dashboard's filter and organize bar, with the same ids for dashboard.js. The

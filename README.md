@@ -12,7 +12,7 @@ It renders the same "Your work" board as the [HelloGitty](https://github.com/Faw
 ## Prerequisites
 
 - **Go 1.22+** (for the WebAssembly build)
-- A local checkout of [hellogitty](https://github.com/FawwazLawal/hellogitty) — the build compiles `extension/wasm` from it and extracts the dashboard's CSS and JS from `web/index.html`
+- A local checkout of [hellogitty](https://github.com/FawwazLawal/hellogitty) — the build compiles `wasm/main.go` inside it (the classifier imports its internal packages) and extracts the dashboard's CSS and JS from `web/index.html`
 
 ## Build
 
