@@ -56,6 +56,8 @@ body.view-popup { width: 440px; }
 
 /* Sign-in: the brand and theme switch only, then one card. The grid header collapses to a
    two-column layout (brand left, theme right) when the centre telemetry is empty. */
+/* 56px is a floor for the sign-in bar, which holds only the brand and the theme switch. Its content
+   is about 57px tall today, so the floor only matters if the brand gets smaller. */
 .signing-in .status { min-height: 56px; padding: 10px 16px; }
 .signing-in .telemetry { display: none; }
 .signing-in .status { grid-template-columns: 1fr auto; }

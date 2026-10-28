@@ -16,8 +16,11 @@ const API = "https://api.github.com/graphql";
 const ALARM = "refresh";
 const PERIOD_MINUTES = 5;
 const FINISHED_DAYS = 30;
-const AMBER = "#e9aa3b";
-const AMBER_INK = "#160e02";
+// The badge takes the dashboard's dark-theme --caution-fill and --caution-ink. A service worker has
+// no page, so it can't read the stylesheet's variables; these copy them. The toolbar badge is
+// Chrome's, drawn the same in every page theme, so one pair is enough.
+const CAUTION_FILL = "#e9aa3b";
+const CAUTION_INK = "#160e02";
 
 // --- classifier --------------------------------------------------------------------------------
 
@@ -110,7 +113,6 @@ async function doRefresh() {
     if (e instanceof AuthError) {
       await signOut();
       await chrome.storage.local.set({ signin: { expired: true, reason: e.message } });
-      console.log("HelloGitty: sign-in expired:", e.message);
       return;
     }
     const { status } = await chrome.storage.local.get("status");
@@ -119,8 +121,8 @@ async function doRefresh() {
 }
 
 async function setBadge(n) {
-  await chrome.action.setBadgeBackgroundColor({ color: AMBER });
-  if (chrome.action.setBadgeTextColor) await chrome.action.setBadgeTextColor({ color: AMBER_INK });
+  await chrome.action.setBadgeBackgroundColor({ color: CAUTION_FILL });
+  if (chrome.action.setBadgeTextColor) await chrome.action.setBadgeTextColor({ color: CAUTION_INK });
   await chrome.action.setBadgeText({ text: n > 0 ? (n > 99 ? "99+" : String(n)) : "" });
   await chrome.action.setTitle({ title: n > 0 ? `HelloGitty: ${n} waiting on you` : "HelloGitty" });
 }
@@ -174,7 +176,6 @@ async function freshToken(force) {
     }
     const next = { ...auth, ...tokenFields(r) };
     await chrome.storage.local.set({ auth: next });
-    console.log("HelloGitty: token renewed, expires in", r.expires_in, "seconds");
     return next.token;
   })().finally(() => { renewing = undefined; });
   return renewing;

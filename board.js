@@ -17,6 +17,11 @@ const DASHBOARD_ORIGIN = "http://localhost:7340/*";
 const FINISHED_SHOWN = 10;
 const GRAPHQL_HOURLY = 5000;
 const STALE_AFTER = 2 * 60 * 60 * 1000; // the dashboard's "Data is stale" threshold
+const RELOAD_EVERY = 5 * 60 * 1000; // the page reloads on the dashboard's 5-minute rhythm
+const COPIED_FOR = 1500; // how long the Copy button says "Copied!"
+// How long the full view waits for a dashboard at localhost:7340 before drawing the board itself.
+// A local server answers in a few milliseconds; this only has to outlast a slow start.
+const DASHBOARD_WAIT = 800;
 const send = (type, extra) => chrome.runtime.sendMessage({ type, ...extra });
 
 // --- helpers -----------------------------------------------------------------------------------
@@ -206,7 +211,10 @@ function header(st, signingIn) {
     if (narrow) rightKids.push(el("button", { type: "button", class: "headbtn", id: "act-full" }, "Full view"));
   }
   rightKids.push(el("div", { class: "theme", role: "group", "aria-label": "Colour theme" },
-    ["auto", "light", "dark"].map((t) => el("button", { type: "button", "data-theme-set": t }, t[0].toUpperCase() + t.slice(1)))));
+    ["auto", "light", "dark"].map((t) => {
+      const name = t[0].toUpperCase() + t.slice(1);
+      return el("button", { type: "button", "data-theme-set": t, "aria-label": name + " theme" }, name);
+    })));
   const headRight = el("div", { class: "head-right" }, rightKids);
   return el("header", { class: "status" }, brand, center, headRight);
 }
@@ -353,6 +361,15 @@ const quiet = (id, text) => el("button", { type: "button", class: "quiet", id },
 const divider = () => el("hr", { class: "sg-rule" });
 const tokenLink = () => el("div", { class: "sg-links" }, quiet("sg-token-open", "Use a personal access token instead"));
 const statusRow = (dot, text) => el("p", { class: "sg-status " + dot }, el("span", { class: "sg-dot", "aria-hidden": "true" }), el("span", null, text));
+// note is a status line and the sentence that explains it.
+const note = (dot, text, detail) => [statusRow(dot, text), el("p", { class: "sg-dim" }, detail)];
+// spinner is the "waiting" line with its ring.
+const spinner = (text) => el("span", { class: "sg-waiting" }, el("span", { class: "sg-ring", "aria-hidden": "true" }), text);
+// startCard is the shape most sign-in states share: what happened, the button that (re)starts
+// Sign in with GitHub, anything under it, and with token, the way to a personal access token.
+function startCard(lead, label, { after = [], token = false } = {}) {
+  return [...lead, primary("sg-start", label, true), ...after, ...(token ? [divider(), tokenLink()] : [])];
+}
 
 // minutes is how long GitHub said the code lasts; without that number the sentence is left out.
 function minutes(device) {
@@ -360,15 +377,14 @@ function minutes(device) {
 }
 
 function startBlock() {
-  return [primary("sg-start", "Sign in with GitHub", true),
+  return startCard([], "Sign in with GitHub", { token: true, after: [
     el("ul", { class: "sg-points" }, ["Read-only: HelloGitty never writes to GitHub", "Your sign-in stays in this browser",
-      "Checks every 5 minutes and talks only to GitHub"].map((t) => el("li", null, t))),
-    divider(), tokenLink()];
+      "Checks every 5 minutes and talks only to GitHub"].map((t) => el("li", null, t)))] });
 }
 
 function allowBlock() {
-  return [el("p", null, "To sign in, HelloGitty needs to reach github.com/login. Chrome asks you to allow that once."),
-    primary("sg-start", "Allow and sign in", true), divider(), tokenLink()];
+  return startCard([el("p", null, "To sign in, HelloGitty needs to reach github.com/login. Chrome asks you to allow that once.")],
+    "Allow and sign in", { token: true });
 }
 
 function waitingBlock(d) {
@@ -377,33 +393,30 @@ function waitingBlock(d) {
     el("p", null, "GitHub is open in a new tab. Paste this code there (it's already copied) and approve HelloGitty."),
     el("div", { class: "sg-code" }, el("span", { class: "sg-code-text", id: "sg-user-code" }, d.userCode), el("button", { type: "button", class: "btn", id: "sg-copy" }, "Copy")),
     el("button", { type: "button", class: "btn block", id: "sg-open" }, "Open github.com/login/device"),
-    el("div", { class: "sg-wait" }, el("span", { class: "sg-waiting" }, el("span", { class: "sg-ring", "aria-hidden": "true" }), "Waiting for you to approve it…"), quiet("sg-cancel", "Cancel")),
+    el("div", { class: "sg-wait" }, spinner("Waiting for you to approve it…"), quiet("sg-cancel", "Cancel")),
     n ? el("p", { class: "sg-small" }, `The code works for ${n} minutes.`) : null];
 }
 
 function expiredBlock(d) {
   const n = minutes(d);
-  return [statusRow("caution", "The code expired."),
-    el("p", { class: "sg-dim" }, n ? `Codes last ${n} minutes. Start again for a new one.` : "Start again for a new one."),
-    primary("sg-start", "Start again", true)];
+  return startCard(note("caution", "The code expired.", n ? `Codes last ${n} minutes. Start again for a new one.` : "Start again for a new one."),
+    "Start again");
 }
 
 function deniedBlock() {
-  return [statusRow("caution", "Sign-in was cancelled on GitHub."),
-    el("p", { class: "sg-dim" }, "Nothing was shared with HelloGitty. Start again whenever you're ready."),
-    primary("sg-start", "Try again", true)];
+  return startCard(note("caution", "Sign-in was cancelled on GitHub.", "Nothing was shared with HelloGitty. Start again whenever you're ready."),
+    "Try again");
 }
 
 function failedBlock(d) {
-  return [el("p", { class: "sg-fail" }, "Couldn't reach GitHub to start sign-in."),
-    el("pre", { class: "sg-errbox" }, d.error),
-    primary("sg-start", "Try again", true), divider(), tokenLink()];
+  return startCard([el("p", { class: "sg-fail" }, "Couldn't reach GitHub to start sign-in."), el("pre", { class: "sg-errbox" }, d.error)],
+    "Try again", { token: true });
 }
 
 function tokenBlock(error, clientID) {
   return [el("form", { class: "sg-form", id: "sg-token-form" },
     el("label", { class: "sg-label", for: "sg-token" }, "Personal access token"),
-    el("input", { type: "password", id: "sg-token", class: "sg-field" + (error ? " bad" : ""), autocomplete: "off", spellcheck: "false",
+    el("input", { type: "password", id: "sg-token", class: "sg-field" + (error ? " bad" : ""), autocomplete: "new-password", spellcheck: "false",
       placeholder: "github_pat_…", "aria-invalid": error ? "true" : null, "aria-describedby": error ? "sg-token-err" : null }),
     error ? el("p", { class: "sg-bad", id: "sg-token-err" }, error) : null,
     el("p", { class: "sg-help" }, "A fine-grained token with no extra permissions covers public repositories. Add private ones if you want them on your board."),
@@ -414,18 +427,16 @@ function tokenBlock(error, clientID) {
 }
 
 function signingBlock() {
-  return [el("div", { class: "sg-wait" }, el("span", { class: "sg-waiting" }, el("span", { class: "sg-ring", "aria-hidden": "true" }), "Opening GitHub…"))];
+  return [el("div", { class: "sg-wait" }, spinner("Opening GitHub…"))];
 }
 
 function webErrorBlock(error) {
-  return [statusRow("caution", "Sign-in didn't complete."),
-    el("p", { class: "sg-dim" }, error),
-    primary("sg-start", "Try again", true), divider(), tokenLink()];
+  return startCard(note("caution", "Sign-in didn't complete.", error), "Try again", { token: true });
 }
 
 function signedInBlock(login) {
-  return [statusRow("nom", login ? "Signed in as @" + login : "Signed in"),
-    el("p", { class: "sg-dim" }, "Loading your pull requests and issues. Your board appears here in a few seconds, and the count waiting on you shows on the toolbar.")];
+  return note("nom", login ? "Signed in as @" + login : "Signed in",
+    "Loading your pull requests and issues. Your board appears here in a few seconds, and the count waiting on you shows on the toolbar.");
 }
 
 // signInColumn is the notice, the card and the line under it, for the current state.
@@ -523,7 +534,7 @@ document.addEventListener("click", (e) => {
     case "sg-token-back": ui(null); send("deviceCancel"); redraw(); break;
     case "sg-copy":
       navigator.clipboard.writeText(document.getElementById("sg-user-code").textContent)
-        .then(() => { t.textContent = "Copied!"; setTimeout(() => { t.textContent = "Copy"; }, 1500); })
+        .then(() => { t.textContent = "Copied!"; setTimeout(() => { t.textContent = "Copy"; }, COPIED_FOR); })
         .catch(() => {});
       break;
     case "sg-open": state().then((st) => chrome.tabs.create({ url: (st.device && safeURL(st.device.uri)) || DEVICE_PAGE })); break;
@@ -588,7 +599,26 @@ function reload() {
 }
 document.addEventListener("focusout", () => { if (reloadWaiting) setTimeout(reload, 0); });
 chrome.storage.onChanged.addListener(() => reload());
-setInterval(reload, 5 * 60 * 1000);
+// A hidden page (a background tab, a closed side panel) skips the timed reload and catches up
+// when it is shown again.
+let reloadMissed = false;
+setInterval(() => { if (document.hidden) reloadMissed = true; else reload(); }, RELOAD_EVERY);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && reloadMissed) { reloadMissed = false; reload(); }
+});
+
+// The popup keeps Tab inside it: past the last control, focus goes back to the first.
+if (view === "popup") {
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const list = [...document.querySelectorAll(FOCUSABLE)].filter((x) => x.getClientRects().length);
+    if (!list.length) return;
+    const first = list[0], last = list[list.length - 1], at = document.activeElement;
+    if (e.shiftKey && (at === first || at === document.body)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
+  });
+}
 
 // --- actions -----------------------------------------------------------------------------------
 
@@ -604,7 +634,7 @@ function showErr(id, text) {
 
 // sidePanel.open has to run inside the click, before any await, so the window is looked up first.
 let windowId;
-chrome.windows.getCurrent().then((w) => { windowId = w.id; });
+chrome.windows.getCurrent().then((w) => { windowId = w.id; }).catch(() => {}); // without it, Side panel does nothing
 
 function wire() {
   on("act-refresh", "click", (e) => { e.target.textContent = "Refreshing…"; send("refresh").finally(() => { e.target.textContent = "Refresh"; }); });
@@ -630,7 +660,7 @@ function wire() {
 // openDashboard sends the full view to the dashboard when it answers at localhost:7340.
 async function openDashboard() {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 800);
+  const timer = setTimeout(() => ctl.abort(), DASHBOARD_WAIT);
   try {
     const res = await fetch(DASHBOARD, { signal: ctl.signal, cache: "no-store" });
     if (!res.ok) return false;
