@@ -1,15 +1,12 @@
 /* HelloGitty for Chrome on top of dashboard.css, which build.sh lifts from web/index.html. Only
-   what the dashboard has no rule for lives here: popup width, the narrow toolbar, the alert row
-   with fewer cells, buttons and fields, and the sign-in card. Colours are the dashboard's
-   variables only, so light and dark follow its theme switch. */
+   what the dashboard has no rule for lives here: popup width, the alert row with fewer cells,
+   buttons and fields, and the sign-in card. Colours are the dashboard's variables only, so light
+   and dark follow its theme switch. */
 
 /* The popup sizes to its content, so it asks for 440px. When Chrome's zoom makes that more than
    the popup can show, the popup is narrower than 440 CSS px and the page fills it instead. */
 body.view-popup { width: 440px; }
 @media (max-width: 439.98px) { body.view-popup { width: auto; } }
-
-/* Side panel and popup: the toolbar keeps search and Needs me only. */
-.narrow .toolbar .seg, .narrow .toolbar .pick { display: none; }
 
 /* Four alert cells (Your move wide, then Check failed, Data is stale, API running low) fill one
    row at the dashboard's 2:1 proportions. Narrow, Your move takes its own row and the three

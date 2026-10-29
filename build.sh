@@ -59,7 +59,7 @@ check dashboard.css ".head-right"
 check dashboard.css "visual-theme"
 check dashboard-head.js "hellogitty-theme"
 check dashboard.js "data-theme-set"
-check dashboard.js "f-mine"
+check dashboard.js "hellogitty-seen"
 if grep -q "{{" "$out/dashboard.css" "$out/dashboard-head.js" "$out/dashboard.js"; then
   echo "template actions found in the lifted dashboard blocks" >&2; exit 1
 fi

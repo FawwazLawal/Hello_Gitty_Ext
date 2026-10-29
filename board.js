@@ -3,8 +3,8 @@
 // loads the dashboard's own script (dashboard.js, lifted from that page by build.sh) for the theme
 // switch, change markers and filters. Like the dashboard, the page reloads to show new data.
 //
-//   board.html?view=popup   the toolbar popup        narrow
-//   board.html?view=panel   Chrome's side panel      narrow: toolbar is search plus Needs me only
+//   board.html?view=popup   the popup                narrow
+//   board.html?view=panel   Chrome's side panel      narrow
 //   board.html?view=tab     the full view in a tab   opens the dashboard instead when it runs
 
 const view = new URLSearchParams(location.search).get("view") || "panel";
@@ -242,24 +242,6 @@ function cells(st) {
     valueCell("api-low", "API running low", low ? b.remaining + " left" : "", "caution", low, "Lit when under 10% of the hourly GitHub quota remains."));
 }
 
-// toolbar is the dashboard's filter and organize bar, with the same ids for dashboard.js. The
-// side panel and popup hide all but search and Needs me only (extension.css).
-function toolbar() {
-  return el("section", { class: "toolbar", "aria-label": "Filter and organize" },
-    el("label", { class: "search" }, el("span", { class: "sr" }, "Search"),
-      el("input", { type: "search", id: "f-q", placeholder: "Search titles, repos, labels, people", autocomplete: "off", spellcheck: "false" }),
-      el("kbd", { title: "Press / to search" }, "/")),
-    el("div", { class: "seg", role: "group", "aria-label": "Show pull requests, issues or both" },
-      [["all", "All"], ["pr", "PRs"], ["issue", "Issues"]].map(([k, t]) => el("button", { type: "button", "data-f-kind": k }, t))),
-    el("label", { class: "pick" }, el("span", { class: "sr" }, "Organization or repository"),
-      el("select", { id: "f-scope" }, el("option", { value: "" }, "All organizations and repos"))),
-    el("label", { class: "check" }, el("input", { type: "checkbox", id: "f-mine" }), " Needs me only"),
-    el("div", { class: "seg", role: "group", "aria-label": "Group your work by" }, el("span", { class: "seglbl" }, "Group by"),
-      [["move", "Whose move"], ["repo", "Repository"], ["owner", "Organization"]].map(([k, t]) => el("button", { type: "button", "data-group": k }, t))),
-    el("span", { class: "fcount", id: "f-count", "aria-live": "polite" }),
-    el("button", { type: "button", class: "clear", id: "f-clear", hidden: true }, "Clear filters"));
-}
-
 function workPanels(st) {
   const b = st.board;
   const login = st.auth.login || "you";
@@ -445,7 +427,7 @@ function webErrorBlock(error) {
 
 function signedInBlock(login) {
   return note("nom", login ? "Signed in as @" + login : "Signed in",
-    "Loading your pull requests and issues. Your board appears here in a few seconds, and the count waiting on you shows on the toolbar.");
+    "Loading your pull requests and issues. Your board appears here in a few seconds.");
 }
 
 // signInColumn is the notice, the card and the line under it, for the current state.
@@ -470,7 +452,7 @@ function signInColumn(st) {
       el("div", { class: "sg-mascot", "aria-hidden": "true" }, el("img", { src: "mascot/rest.png", alt: "" })),
       el("div", { class: "sg-body" },
         el("h2", { class: "sg-title", id: "sg-title" }, st.signedIn ? "You're signed in" : "Your GitHub work, sorted by whose move it is"),
-        st.signedIn ? null : el("p", { class: "sg-lede" }, "See every pull request and issue you have out, what's waiting on you, and the count on your toolbar."),
+        st.signedIn ? null : el("p", { class: "sg-lede" }, "See every pull request and issue you have out and what's waiting on you."),
         block)),
     el("p", { class: "sg-foot" }, "Read-only · your sign-in stays in this browser · talks only to GitHub"));
 }
@@ -582,7 +564,6 @@ async function render() {
       narrow ? null : el("div", { class: "rail" }, dashboardPanel())));
   } else {
     body.push(cells(st));
-    if (st.board) body.push(toolbar());
     body.push(el("div", { class: "grid" },
       el("div", { class: "main" }, workPanels(st)),
       el("div", { class: "rail" }, checksPanel(st), accountPanel(st), narrow ? null : dashboardPanel())));
