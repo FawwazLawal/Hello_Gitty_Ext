@@ -234,7 +234,9 @@ function cells(st) {
   const stale = !b || !(Date.now() - fetched <= STALE_AFTER);
   const staleValue = !b ? "no check yet" : stale ? ago(b.fetchedAt) : "";
   const low = !!(b && b.remaining && b.remaining * 10 < GRAPHQL_HOURLY);
-  return el("section", { class: "cw", "aria-label": "Alerts" }, moveCell,
+  const unresolvedCell = b ? counter("unresolved", "Unresolved threads", b.unresolvedPRs || [], "caution", false)
+    : emptyCell("unresolved", "Unresolved threads", "not checked yet", "caution", false);
+  return el("section", { class: "cw", "aria-label": "Alerts" }, moveCell, unresolvedCell,
     counter("poll-fail", "Check failed", st.error ? ["your work"] : [], "warn", false),
     valueCell("data-stale", "Data is stale", staleValue, "warn", stale, "Lit when the last check of GitHub is more than 2 hours old."),
     valueCell("api-low", "API running low", low ? b.remaining + " left" : "", "caution", low, "Lit when under 10% of the hourly GitHub quota remains."));

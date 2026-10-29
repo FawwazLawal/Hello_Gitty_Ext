@@ -12,6 +12,7 @@ package main
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"syscall/js"
 	"time"
@@ -72,6 +73,9 @@ type view struct {
 	You       []row  `json:"you"`
 	Them      []row  `json:"them"`
 	Done      []row  `json:"done"`
+	// UnresolvedPRs names the user's open PRs that have unresolved review threads,
+	// as "repo#number" strings for the alert cell.
+	UnresolvedPRs []string `json:"unresolvedPRs"`
 	// Glossary is the hover help text, the same as the dashboard's.
 	Glossary map[string]help.Term `json:"glossary"`
 }
@@ -144,6 +148,25 @@ func toView(b *work.Board) view {
 			default:
 				v.Done = append(v.Done, r)
 			}
+		}
+	}
+	for _, it := range b.Sent {
+		if !it.PR || it.State != "OPEN" {
+			continue
+		}
+		var open int
+		for _, t := range it.Threads {
+			if !t.RepliedLast {
+				open++
+			}
+		}
+		if open > 0 {
+			parts := strings.SplitN(it.Repo, "/", 2)
+			name := it.Repo
+			if len(parts) == 2 {
+				name = parts[1]
+			}
+			v.UnresolvedPRs = append(v.UnresolvedPRs, name+"#"+strconv.Itoa(it.Number))
 		}
 	}
 	return v
