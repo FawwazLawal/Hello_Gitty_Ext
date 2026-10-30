@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=440">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 440px; height: 280px; overflow: hidden;
+  background: linear-gradient(135deg, #0f1f1a 0%, #0a0a0b 40%, #0a0a0b 60%, #121218 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: #e2e2e0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+}
+
+.icon {
+  width: 72px; height: 72px; margin-bottom: 20px;
+  filter: drop-shadow(0 2px 12px rgba(29, 158, 117, 0.35));
+}
+
+.name {
+  font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.name span { color: #1D9E75; }
+
+.tagline {
+  font-size: 14px; color: #9a9a96; letter-spacing: 0.01em;
+  max-width: 340px; text-align: center; line-height: 1.45;
+}
+
+.badge-demo {
+  position: absolute; top: 22px; right: 28px;
+  display: flex; align-items: center; gap: 8px;
+}
+.badge-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  position: relative;
+}
+.badge-count {
+  position: absolute; top: -5px; right: -5px;
+  background: #e9aa3b; color: #160e02;
+  font-size: 9px; font-weight: 700;
+  width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.columns {
+  position: absolute; bottom: 20px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 20px;
+}
+.col-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 5px;
+}
+.col-label .dot {
+  width: 6px; height: 6px; border-radius: 3px;
+}
+.dot-you { background: #e9aa3b; }
+.dot-them { background: #9a9a96; }
+.dot-done { background: #4fc469; }
+
+.glow {
+  position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 200px; border-radius: 100px;
+  background: radial-gradient(circle, rgba(29, 158, 117, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="badge-demo">
+  <div class="badge-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 128 128">
+      <rect width="128" height="128" rx="28" fill="#1D9E75"/>
+      <path d="M38 94V72L38 34 52 50V78L38 94Z" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M90 94V72L90 34 76 50V78L90 94Z" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="badge-count">3</div>
+  </div>
+</div>
+
+<svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#1D9E75"/>
+  <path d="M38 94V72L38 34 52 50V78L38 94Z" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M90 94V72L90 34 76 50V78L90 94Z" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+<div class="name">Hello<span>Gitty</span></div>
+<div class="tagline">Your GitHub work, sorted by whose move it is</div>
+
+<div class="columns">
+  <div class="col-label"><span class="dot dot-you"></span> Your move</div>
+  <div class="col-label"><span class="dot dot-them"></span> Waiting</div>
+  <div class="col-label"><span class="dot dot-done"></span> Finished</div>
+</div>
+</body>
+</html>
