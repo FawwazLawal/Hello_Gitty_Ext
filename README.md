@@ -33,15 +33,30 @@ It renders the same "Your work" board as the [HelloGitty](https://github.com/Faw
 ### Commands
 
 ```bash
-# If hellogitty-clone is a sibling directory (the default):
+# With a hellogitty checkout next to this repo (default search):
 ./build.sh
 
-# Otherwise, point to your checkout:
-HELLOGITTY_ROOT=/path/to/hellogitty-clone ./build.sh
+# Or point at any checkout you prefer:
+HELLOGITTY_ROOT=/path/to/hellogitty ./build.sh
 
 # Bake in the OAuth app's public client ID for device-flow sign-in:
 HELLOGITTY_CLIENT_ID=Ov23li... ./build.sh
 ```
+
+#### `HELLOGITTY_ROOT`
+
+`HELLOGITTY_ROOT` points at a working copy of the [hellogitty](https://github.com/FawwazLawal/hellogitty) repo — `build.sh` compiles `wasm/main.go` from that tree and lifts CSS/JS blocks out of its `web/index.html`, so the two can never drift.
+
+When `HELLOGITTY_ROOT` is unset, `build.sh` looks, in order, at:
+
+1. `../hellogitty` — sibling clone
+2. `../hellogitty-clone` — the legacy default sibling name
+3. `../../hellogitty/repo` — monorepo layout (e.g. `tools/hellogitty-extension/<worktree>/` beside `tools/hellogitty/repo/`)
+4. `../../../hellogitty/repo` — same layout, one level deeper (a worktree under `tools/hellogitty-extension/worktrees/<name>`)
+
+The first path that contains `web/index.html` wins. If none does, the script fails fast with every path it tried and the exact fix (set `HELLOGITTY_ROOT` or clone hellogitty beside this repo).
+
+### Output
 
 The build produces `dist/hellogitty/` (the unpacked extension) and `dist/hellogitty-extension-<version>.zip` (for the Chrome Web Store). Builds are deterministic: fixed timestamps and a sorted file list make the zip byte-identical across runs.
 

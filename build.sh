@@ -4,11 +4,51 @@
 # Store. Running it again gives the same files and a byte-identical zip.
 #
 #   HELLOGITTY_CLIENT_ID=Ov23li... ./build.sh   # bakes in the OAuth app's public client ID
+#
+# HELLOGITTY_ROOT names the local hellogitty checkout — `./build.sh` imports its
+# `internal/work` package for the WebAssembly classifier and lifts CSS/JS blocks
+# out of its `web/index.html`. When unset, the script searches a short list of
+# common layouts (sibling clones, then the FawwazLawal/Anvil_Domain tools/ layout)
+# and fails fast with every path it checked.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-root="${HELLOGITTY_ROOT:-$here/../hellogitty-clone}"
-root="$(cd "$root" 2>/dev/null && pwd)" || { echo "hellogitty-clone not found. Set HELLOGITTY_ROOT to your checkout." >&2; exit 1; }
+
+resolve_root() {
+  local candidates=()
+  if [[ -n "${HELLOGITTY_ROOT:-}" ]]; then
+    candidates+=("$HELLOGITTY_ROOT")
+  else
+    # Sibling clones (public use):
+    candidates+=("$here/../hellogitty" "$here/../hellogitty-clone")
+    # Anvil Domain's tools/ layout — extension at tools/hellogitty-extension/{repo,worktrees/<x>}/,
+    # hellogitty at tools/hellogitty/repo/. Hop up to the tool root (one or two levels, since
+    # worktrees sit one level deeper than repo/) and across.
+    candidates+=("$here/../../hellogitty/repo" "$here/../../../hellogitty/repo")
+  fi
+  local c
+  for c in "${candidates[@]}"; do
+    [[ -z "$c" ]] && continue
+    if [[ -f "$c/web/index.html" ]]; then
+      (cd "$c" && pwd)
+      return 0
+    fi
+  done
+  {
+    echo "hellogitty checkout not found: no candidate contained web/index.html."
+    echo "Set HELLOGITTY_ROOT to your checkout, or clone hellogitty beside this repo."
+    echo "Searched (in order):"
+    for c in "${candidates[@]}"; do
+      [[ -z "$c" ]] && continue
+      local resolved="$c"
+      resolved="$(cd "$c" 2>/dev/null && pwd || echo "$c (does not exist)")"
+      echo "  - $resolved"
+    done
+  } >&2
+  return 1
+}
+
+root="$(resolve_root)"
 page="$root/web/index.html"
 [[ -f "$page" ]] || { echo "$page not found — is HELLOGITTY_ROOT correct?" >&2; exit 1; }
 out="$here/dist/hellogitty"
